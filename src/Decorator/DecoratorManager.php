@@ -1,10 +1,4 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: Дмитрий
- * Date: 15.07.2018
- * Time: 21:24
- */
 
 namespace src\Decorator;
 
@@ -12,50 +6,71 @@ use DateTime;
 use Exception;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
-use src\Integration\DataProvider;
+use src\Service\ServiceInterface;
 
-class DecoratorManager extends DataProvider
+
+class DecoratorManager extends ServiceDecoratorAbstract
 {
-    public $cache;
-
-    public $logger;
+    /**
+     * @var CacheItemPoolInterface
+     */
+    protected $cache;
 
     /**
-     * @param string                 $host
-     * @param string                 $user
-     * @param string                 $password
-     * @param CacheItemPoolInterface $cache
+     * @var LoggerInterface
      */
-    public function __construct($host, $user, $password, CacheItemPoolInterface $cache)
+    protected $logger;
+
+    /**
+     * @var ServiceInterface
+     */
+    protected $service;
+
+    /**
+     * DecoratorManager constructor.
+     *
+     * @param ServiceInterface $service
+     */
+    public function __construct(ServiceInterface $service, LoggerInterface $logger)
     {
-        parent::__construct($host, $user, $password);
-        $this->cache = $cache;
+        $this->service = $service;
+        $this->logger  = $logger;
     }
 
-    public function setLogger(LoggerInterface $logger)
+    /**
+     * @param CacheItemPoolInterface $cache
+     */
+    public function setCache($cache)
     {
-        $this->logger = $logger;
+        $this->cache = $cache;
     }
 
     /**
      * {@inheritdoc}
      */
-    public function getResponse(array $input)
+    public function get(array $request)
     {
         try {
-            $cacheKey  = $this->getCacheKey($input);
-            $cacheItem = $this->cache->getItem($cacheKey);
-            if ($cacheItem->isHit()) {
-                return $cacheItem->get();
+            if (!is_null($this->cache)) {
+                $cacheKey  = $this->getCacheKey($request);
+                $cacheItem = $this->cache->getItem($cacheKey);
+                if ($cacheItem->isHit()) {
+                    return $cacheItem->get();
+                }
             }
 
-            $result = parent::get($input);
+            $result = $this->service->get($request);
 
-            $cacheItem
-                ->set($result)
-                ->expiresAt(
-                    (new DateTime())->modify('+1 day')
-                );
+            if ($result && !is_null($this->cache)) {
+                $cacheItem = new CacheItem();
+                $cacheItem
+                    ->set($result)
+                    ->expiresAt(
+                        (new DateTime())->modify('+1 day')
+                    );
+
+                $this->cache->save($cacheItem);
+            }
 
             return $result;
         } catch (Exception $e) {
@@ -65,8 +80,14 @@ class DecoratorManager extends DataProvider
         return [];
     }
 
+    /**
+     * @param array $input
+     *
+     * @return string
+     */
     public function getCacheKey(array $input)
     {
         return json_encode($input);
     }
+
 }

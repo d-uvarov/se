@@ -1,11 +1,19 @@
 <?php
+/**
+ * Created by PhpStorm.
+ * User: Дмитрий
+ * Date: 16.07.2018
+ * Time: 0:31
+ */
 
-namespace src\Integration;
+namespace src\Service\Db;
 
-class DataProvider
+class DbService implements \src\Service\ServiceInterface
 {
     private $host;
+
     private $user;
+
     private $password;
 
     /**
@@ -15,18 +23,18 @@ class DataProvider
      */
     public function __construct($host, $user, $password)
     {
-        $this->host = $host;
-        $this->user = $user;
+        $this->host     = $host;
+        $this->user     = $user;
         $this->password = $password;
     }
 
     /**
-     * @param array $request
-     *
      * @return array
      */
     public function get(array $request)
     {
-        // returns a response from external service
+        // call service
+        return [];
     }
+
 }
